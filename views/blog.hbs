@@ -49,16 +49,16 @@
         {{#if isLogin}}
         <div class="button-group">
           <a class="btn-edit">Edit Post</button>
-          <a class="btn-post" href="/delete-blog/{{@index}}">Delete Blog</a>
+            <a href="/delete-blog/{{@index}}" class="btn-post">Delete Blog</a>
         </div>
         {{/if}}
         <h1>
-          <a href="/blog/1" target="_blank">
+          <a href="/blog/78" target="_blank">
             {{this.title}}
           </a>
         </h1>
         <div class="detail-blog-content">
-          {{this.posted_at}} || {{this.author}}
+          {{this.post_at}} | {{this.author}}
         </div>
         <p>
           {{this.content}}

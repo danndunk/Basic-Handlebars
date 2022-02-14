@@ -1,22 +1,22 @@
-// pemanggilan package express
+// Pemanggilan package express
 const express = require("express");
+const { is, get } = require("express/lib/request");
 
-// menggunakan package express
+// import db connection
+const db = require("./connection/db");
+
+// Menggunakan package express
 const app = express();
 
 // set template engine
 app.set("view engine", "hbs");
 
-// set app can use all folder => app.use(express.static(__dirname + "/"));
-// sett app can use spesific folder (public)
 app.use("/public", express.static(__dirname + "/public"));
-
-// render data from form to blog
 app.use(express.urlencoded({ extended: false }));
 
-// set login
-
-let isLogin = true;
+// true => sudah login
+// false => belum login
+const isLogin = true;
 
 const blogs = [
   {
@@ -36,16 +36,16 @@ let month = [
   "May",
   "June",
   "July",
-  "Agus",
+  "August",
   "September",
   "October",
   "November",
   "December",
 ];
 
-// set endpoint
+// Set endpoint
 app.get("/", function (req, res) {
-  res.send("Hello World!");
+  res.send("Hello World");
 });
 
 app.get("/home", function (req, res) {
@@ -53,19 +53,34 @@ app.get("/home", function (req, res) {
 });
 
 app.get("/blog", function (req, res) {
-  console.log(blogs); // hanya ada 4 properti
+  let query = "SELECT * FROM tb_blog";
 
-  let dataBlogs = blogs.map(function (data) {
-    return {
-      ...data,
-      isLogin: isLogin,
-    };
+  db.connect((err, client, done) => {
+    if (err) throw err;
+
+    client.query(query, (err, result) => {
+      done();
+
+      if (err) throw err;
+      let data = result.rows;
+
+      data = data.map((blog) => {
+        return {
+          ...blog,
+          post_at: getFullTime(blog.post_at),
+          isLogin: isLogin,
+        };
+      });
+      res.render("blog", { isLogin: isLogin, blogs: data });
+    });
   });
-
-  res.render("blog", { isLogin: isLogin, blogs: dataBlogs });
 });
 
 app.get("/add-blog", function (req, res) {
+  if (!isLogin) {
+    res.redirect("/home");
+  }
+
   res.render("form-blog");
 });
 
@@ -96,6 +111,8 @@ app.get("/blog/:id", function (req, res) {
 app.get("/delete-blog/:index", function (req, res) {
   let index = req.params.index;
 
+  console.log(`Index data : ${index}`);
+
   blogs.splice(index, 1);
   res.redirect("/blog");
 });
@@ -104,11 +121,10 @@ app.get("/contact-me", function (req, res) {
   res.render("contact");
 });
 
-// konfigurasi port aplikasi
+// Konfigurasi port aplikasi
 const port = 5000;
-
 app.listen(port, function () {
-  console.log(`application running on port ${port}`);
+  console.log(`Server running on port ${port}`);
 });
 
 function getFullTime(time) {
