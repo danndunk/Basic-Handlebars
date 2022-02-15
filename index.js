@@ -1,6 +1,5 @@
 // Pemanggilan package express
 const express = require("express");
-const { is, get } = require("express/lib/request");
 
 // import db connection
 const db = require("./connection/db");
@@ -14,19 +13,7 @@ app.set("view engine", "hbs");
 app.use("/public", express.static(__dirname + "/public"));
 app.use(express.urlencoded({ extended: false }));
 
-// true => sudah login
-// false => belum login
 const isLogin = true;
-
-const blogs = [
-  {
-    title: "Pasar Coding di Indonesia Dinilai Masih Menjanjikan",
-    content:
-      "Ketimpangan sumber daya manusia (SDM) di sektor digital masih menjadi isu yang belum terpecahkan. Berdasarkan penelitian ManpowerGroup, ketimpangan SDM global, termasuk Indonesia, meningkat dua kali lipat dalam satu dekade terakhir. Lorem ipsum, dolor sit amet consectetur adipisicing elit. Quam, molestiae numquam! Deleniti maiores expedita eaque deserunt quaerat! Dicta, eligendi debitis?",
-    author: "Ichsan Emrald Alamsyah",
-    posted_at: "12 Jul 2021 22:30 WIB",
-  },
-];
 
 let month = [
   "January",
@@ -53,7 +40,7 @@ app.get("/home", function (req, res) {
 });
 
 app.get("/blog", function (req, res) {
-  let query = "SELECT * FROM tb_blog";
+  let query = "SELECT * FROM tb_blog ORDER BY id DESC";
 
   db.connect((err, client, done) => {
     if (err) throw err;
@@ -68,9 +55,11 @@ app.get("/blog", function (req, res) {
         return {
           ...blog,
           post_at: getFullTime(blog.post_at),
+          post_age: getDistanceTime(blog.post_at),
           isLogin: isLogin,
         };
       });
+
       res.render("blog", { isLogin: isLogin, blogs: data });
     });
   });
@@ -85,36 +74,102 @@ app.get("/add-blog", function (req, res) {
 });
 
 app.post("/blog", function (req, res) {
-  let title = req.body.title;
-  let content = req.body.content;
-  let date = new Date();
+  // let title = req.body.title
+  // let content = req.body.content
+
+  let { title, content } = req.body;
 
   let blog = {
     title: title,
     content,
-    author: "Ichsan Emrald Alamsyah",
-    posted_at: getFullTime(date),
+    image: "image.png",
   };
 
-  blogs.push(blog);
+  db.connect((err, client, done) => {
+    if (err) throw err;
 
-  res.redirect("/blog");
+    let query = `INSERT INTO tb_blog(title, content, image) VALUES
+                        ('${blog.title}', '${blog.content}', '${blog.image}')`;
+
+    client.query(query, (err, result) => {
+      done();
+      if (err) throw err;
+
+      res.redirect("/blog");
+    });
+  });
 });
 
 app.get("/blog/:id", function (req, res) {
-  let id = req.params.id;
-  console.log(`Id dari client : ${id}`);
+  // let id = req.params.id
+  let { id } = req.params;
 
-  res.render("blog-detail", { id: id });
+  db.connect((err, client, done) => {
+    if (err) throw err;
+
+    let query = `SELECT * FROM tb_blog WHERE id=${id}`;
+    client.query(query, (err, result) => {
+      done();
+      if (err) throw err;
+
+      result = result.rows[0];
+      res.render("blog-detail", { blog: result });
+    });
+  });
 });
 
-app.get("/delete-blog/:index", function (req, res) {
-  let index = req.params.index;
+app.get("/delete-blog/:id", function (req, res) {
+  let { id } = req.params;
 
-  console.log(`Index data : ${index}`);
+  db.connect((err, client, done) => {
+    if (err) throw err;
 
-  blogs.splice(index, 1);
-  res.redirect("/blog");
+    let query = `DELETE FROM tb_blog WHERE id=${id}`;
+
+    client.query(query, (err, result) => {
+      done();
+      if (err) throw err;
+
+      res.redirect("/blog");
+    });
+  });
+});
+
+app.get("/update-blog/:id", function (req, res) {
+  let { id } = req.params;
+
+  db.connect((err, client, done) => {
+    if (err) throw err;
+
+    let query = `SELECT * FROM tb_blog WHERE id=${id}`;
+
+    client.query(query, (err, result) => {
+      done();
+      if (err) throw err;
+
+      result = result.rows[0];
+
+      res.render("blog-update", { blog: result });
+    });
+  });
+});
+
+app.post("/update-blog/:id", function (req, res) {
+  let { id } = req.params;
+  let { title, content } = req.body;
+
+  let query = `UPDATE tb_blog SET title='${title}', content='${content}' WHERE id=${id}`;
+
+  db.connect((err, client, done) => {
+    if (err) throw err;
+
+    client.query(query, (err, result) => {
+      done();
+      if (err) throw err;
+
+      res.redirect("/blog");
+    });
+  });
 });
 
 app.get("/contact-me", function (req, res) {
@@ -140,4 +195,33 @@ function getFullTime(time) {
   }
 
   return `${date} ${month[monthIndex]} ${year} ${hours}:${minutes} WIB`;
+}
+
+function getDistanceTime(time) {
+  // waktu saat ini - waktu postingan
+  const distance = new Date() - new Date(time);
+  //Convert to day
+  const miliseconds = 1000;
+  const secondsInMinute = 60;
+  const minutesInHour = 60;
+  const secondsInHour = secondsInMinute * minutesInHour;
+  const hoursInDay = 23;
+
+  let dayDistance = distance / (miliseconds * secondsInHour * hoursInDay);
+
+  if (dayDistance >= 1) {
+    return Math.floor(dayDistance) + " day ago";
+  } else {
+    // convert to hour
+    let hourDistance = Math.floor(distance / (miliseconds * secondsInHour));
+    if (hourDistance > 0) {
+      return hourDistance + " hour ago";
+    } else {
+      // convert to minute
+      const minuteDistance = Math.floor(
+        distance / (miliseconds * secondsInMinute)
+      );
+      return minuteDistance + " minute ago";
+    }
+  }
 }
